@@ -1,0 +1,41 @@
+[project]
+name = "lm-pretraining"
+version = "26.0.0"
+description = "LM pretraining from scratch, based on Stanford CS336 Spring 2026 assignment 1"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "einops>=0.8",
+    "numpy>=2.4",
+    "regex>=2026.3.32",
+    "torch~=2.11.0",
+    "wandb>=0.25",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "src"
+module-root = ""
+
+[tool.uv]
+package = true
+python-preference = "managed"
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "WARNING"
+addopts = "-s"
+
+[dependency-groups]
+dev = [
+    "jaxtyping>=0.3",
+    "modal>=1.6.1",
+    "psutil>=7",
+    "pytest>=9.0",
+    "pytest-timeout>=2.4.0",
+    "tiktoken>=0.12.0",
+    "ty>=0.0.26",
+]

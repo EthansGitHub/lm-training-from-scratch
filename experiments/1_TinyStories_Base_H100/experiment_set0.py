@@ -1,0 +1,72 @@
+import modal
+
+project_name = "lm-pretraining-tiny-stories-base-h100"
+
+app = modal.App(project_name)
+
+image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .uv_sync(extra_options="--no-dev")
+    .add_local_python_source("src")
+)
+
+data_vol = modal.Volume.from_name("lm-pretraining-data")
+checkpoints_vol = modal.Volume.from_name("lm-pretraining-checkpoints")
+
+
+@app.function(
+    image=image,
+    gpu="H100!",
+    memory=8192,
+    timeout=3 * 60,
+    secrets=[modal.Secret.from_name("wandb")],
+    volumes={"/root/data": data_vol, "/root/checkpoints": checkpoints_vol},
+    name=project_name,
+)
+def train_one(suffix: int, max_lr: float, warmup_iters: int, weight_decay: float, beta2: float):
+    from src.lm_training.experiment import experiment
+
+    experiment(
+        project_name=project_name,
+        use_wandb=True,
+        run_name=f"set0-{suffix}",
+        wandb_tag="set0_start",
+        checkpoint=False,
+        dataset="TinyStories",
+        vocab_size=10000,
+        context_length=256,
+        d_model=512,
+        num_layers=4,
+        num_heads=16,
+        device="cuda",
+        num_train_iters=200,
+        num_console_log_iters=10,
+        num_validate_iters=25,
+        batch_size=768,
+        num_validate_points=1,
+        max_lr=max_lr,
+        warmup_iters=warmup_iters,
+        weight_decay=weight_decay,
+        beta1=0.9,
+        beta2=beta2,
+    )
+    checkpoints_vol.commit()
+
+
+@app.local_entrypoint()
+def train_multiple():
+    for suffix, max_lr, warmup_iters, weight_decay, beta2 in (
+        (0, 0.003, 100, 0.1, 0.95),
+        (1, 0.001, 100, 0.1, 0.95),
+        (2, 0.01, 100, 0.1, 0.95),
+        (3, 0.03, 100, 0.1, 0.95),
+        (4, 0.1, 100, 0.1, 0.95),
+        (5, 0.003, 50, 0.1, 0.95),
+        (6, 0.003, 25, 0.1, 0.95),
+        (7, 0.003, 100, 0.01, 0.95),
+        (8, 0.003, 100, 0.03, 0.95),
+        (9, 0.003, 100, 0.1, 0.9),
+        (10, 0.003, 100, 0.1, 0.99),
+        (11, 0.003, 100, 0.1, 0.999),
+    ):
+        train_one.spawn(suffix, max_lr, warmup_iters, weight_decay, beta2)
